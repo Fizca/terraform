@@ -73,9 +73,9 @@ variable "db_name" {
 # --- Lambda ---
 
 variable "lambda_memory_mb" {
-  description = "Lambda memory in MB (also scales CPU)."
+  description = "Lambda memory in MB (also scales CPU). Sharp image processing needs headroom."
   type        = number
-  default     = 512
+  default     = 1024
 }
 
 variable "lambda_timeout_s" {

@@ -1,7 +1,44 @@
-# The Mongo connection string lives in SSM as a SecureString (free) and is read at Lambda cold start.
-resource "aws_ssm_parameter" "mongodb_uri" {
-  name        = "/${var.app_name}/mongodb_uri"
-  description = "MongoDB Atlas connection string for the ${var.app_name} backend."
-  type        = "SecureString"
-  value       = local.mongodb_uri
+# App configuration lives in SSM under ${var.ssm_prefix}. The Lambda's bootstrap.js loads every
+# parameter under this path into env at cold start, and node-config reads them.
+#
+# Two kinds:
+#  - Managed here (non-secret or Terraform-generated): MONGO_URL, S3 + CORS settings.
+#  - Placeholder + ignore_changes (real secrets): you set the values once via `aws ssm put-parameter`,
+#    so they never live in a local file or in Terraform state.
+
+# Terraform-generated connection string.
+resource "aws_ssm_parameter" "mongo_url" {
+  name  = "${var.ssm_prefix}/MONGO_URL"
+  type  = "SecureString"
+  value = local.mongodb_uri
+}
+
+# Non-secret operational config, managed from variables.
+resource "aws_ssm_parameter" "config" {
+  for_each = {
+    AWS_S3_BUCKET_NAME = var.s3_bucket_name
+    AWS_S3_REGION      = var.aws_region
+    AWS_S3_API_VERSION = "2006-03-01"
+    CORS_WHITELIST     = "https://${var.subdomain}.${var.domain}"
+  }
+  name  = "${var.ssm_prefix}/${each.key}"
+  type  = "String"
+  value = each.value
+}
+
+# Secrets - created empty, you fill them via the AWS CLI. Terraform never sees the real values.
+resource "aws_ssm_parameter" "secrets" {
+  for_each = toset([
+    "SESSION_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "JWT_CLIENT_SECRET",
+  ])
+  name  = "${var.ssm_prefix}/${each.key}"
+  type  = "SecureString"
+  value = "REPLACE_ME"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
