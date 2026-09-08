@@ -1,0 +1,18 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Secrets and vars
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+
+# Build artifacts
+.build/
+lambda_src/node_modules/
+
+**.DS_Store
