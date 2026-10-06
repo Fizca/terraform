@@ -4,11 +4,11 @@ Terraform for a $0-at-low-traffic serverless backend and SPA:
 
 ```
 app2.DOMAIN  (Cloudflare Pages SPA)
-   /api/*  --same-origin proxy (Pages Function)-->  AWS Lambda Function URL (Node)
+   /api/*  --same-origin proxy (Pages Function)-->  AWS HTTP API Gateway --> Lambda (Node)
                                                         --> MongoDB Atlas (mongodb+srv, TLS + SCRAM)
 ```
 
-- Backend: AWS Lambda + Function URL (free tier covers ~1M req/mo).
+- Backend: AWS Lambda fronted by an HTTP API Gateway (free tier covers ~1M req/mo).
 - Frontend: new subdomain SPA on Cloudflare Pages (additive, existing apps untouched).
 - CORS is designed out: SPA and API share one origin via the Cloudflare proxy.
 - DB: existing MongoDB Atlas cluster. Terraform creates a scoped user + `0.0.0.0/0` allowlist
@@ -49,8 +49,8 @@ build. Terraform sets the `BACKEND_URL` and `PROXY_SECRET` env vars on the Pages
 ## Verify
 
 ```sh
-# Lambda direct (should return {"status":"ok","db":"connected"}):
-curl "$(terraform output -raw lambda_function_url)api/health" -H "x-proxy-secret: <PROXY_SECRET>"
+# Backend direct via API Gateway (should return {"status":"ok","db":"connected"}):
+curl "$(terraform output -raw backend_api_url)/api/health" -H "x-proxy-secret: <PROXY_SECRET>"
 
 # Same-origin through Cloudflare (no secret header needed - the proxy adds it):
 curl "https://app2.DOMAIN/api/health"
@@ -61,7 +61,7 @@ the pre-existing Cloudflare app still works.
 
 ## Cost notes
 
-- Function URL (not API Gateway) = no per-request gateway charge.
+- HTTP API Gateway: first 1M requests/month are free, then ~$1 per million.
 - CloudWatch log retention is 14 days to avoid storage creep.
 - Expect ~$0 until roughly 1M requests/month.
 

@@ -9,7 +9,7 @@ resource "cloudflare_pages_project" "spa" {
     production {
       # Available to the same-origin proxy Pages Function (functions/api/[[path]].js).
       environment_variables = {
-        BACKEND_URL  = aws_lambda_function_url.backend.function_url
+        BACKEND_URL  = aws_apigatewayv2_api.backend.api_endpoint
         PROXY_SECRET = random_password.proxy_secret.result
       }
     }

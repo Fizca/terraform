@@ -1,6 +1,6 @@
-output "lambda_function_url" {
-  description = "Direct Lambda HTTPS endpoint (fronted by the Cloudflare proxy in production)."
-  value       = aws_lambda_function_url.backend.function_url
+output "backend_api_url" {
+  description = "HTTP API Gateway endpoint for the backend (fronted by the Cloudflare proxy in production)."
+  value       = aws_apigatewayv2_api.backend.api_endpoint
 }
 
 output "lambda_function_name" {
