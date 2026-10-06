@@ -1,9 +1,9 @@
 # --- GitHub CI (OIDC) ---
 
 variable "github_repo" {
-  description = "GitHub repo (owner/name) allowed to deploy the Lambda via OIDC."
+  description = "GitHub repo (owner/name) allowed to deploy the Lambda via OIDC. Must match the repo's exact casing - the OIDC sub claim is case-sensitive."
   type        = string
-  default     = "fizca/server"
+  default     = "Fizca/server"
 }
 
 variable "github_branch" {
