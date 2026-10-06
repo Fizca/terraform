@@ -70,3 +70,26 @@ the pre-existing Cloudflare app still works.
 State is local only. `terraform.tfstate` lives on the machine that runs `apply` and contains the DB
 password and connection string. It is gitignored, so it never leaves the machine. Run Terraform from
 that one machine, and back up the file if it matters to you.
+
+### Session Secret
+
+The session secret is uploaded to AWS via terminal.
+
+The secret is set in AWS SSM. The `--overwrite` flag clobbers the value in the secret to replace what terraform entered. Terraform already has the `ignore_changes = [value]` setup, so on future run of terraform this will not change.
+
+```bash
+aws ssm put-parameter \
+  --name "/fennec/server/SESSION_SECRET" \
+  --type SecureString \
+  --value "$(openssl rand -base64 48)" \
+  --overwrite \
+  --region us-east-2
+```
+
+The value can then be checked to be set. The return should **NOT** be `REPLACE_ME`. If it returns with that, it means the value was not set.
+
+```bash
+aws ssm get-parameter --name /fennec/server/SESSION_SECRET \
+  --with-decryption --region us-east-2 \
+  --query Parameter.Value --output text
+```
