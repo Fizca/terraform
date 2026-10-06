@@ -34,23 +34,6 @@ variable "subdomain" {
   default     = "app2"
 }
 
-variable "github_owner" {
-  description = "GitHub org/user that owns the SPA repo Cloudflare Pages builds from."
-  type        = string
-  default     = "fizca"
-}
-
-variable "spa_repo" {
-  description = "GitHub repo name for the SPA that Cloudflare Pages builds from."
-  type        = string
-  default     = "client"
-}
-
-variable "google_client_id" {
-  description = "Public Google OAuth web client id. Set as the SPA's REACT_APP_GOOGLE_CLIENT_ID build var; must match the server's GOOGLE_CLIENT_ID. Public value, not a secret."
-  type        = string
-}
-
 # --- MongoDB Atlas ---
 
 variable "mongodbatlas_public_key" {

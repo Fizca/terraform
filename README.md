@@ -31,24 +31,32 @@ Secrets can also be passed as env vars, e.g. `export TF_VAR_mongodbatlas_private
 
 ## Deploy
 
-One-time prerequisite: authorize the Cloudflare GitHub app on the `github_owner` org so Pages can
-build from the repo. Do this in the Cloudflare dashboard (Workers & Pages, connect to Git).
-Terraform cannot grant this.
+Cloudflare's dashboard no longer offers Pages git integration (it steers new repos into Workers),
+and the git-integration API is unreliable (error `8000011`). So the Pages project is a direct-upload
+project: Terraform provisions it, its runtime env vars, and the custom domain; a GitHub Actions
+workflow in the client repo builds and publishes it on every push to `main`.
 
 ```sh
 # 1. Install backend deps so the Lambda zip includes them.
 cd lambda_src && npm ci && cd ..
 
-# 2. Provision everything (creates the git-connected Pages project).
+# 2. Provision everything (creates the direct-upload Pages project, domain, and env vars).
 terraform init
 terraform apply
 ```
 
-The SPA then deploys automatically: Cloudflare builds and publishes on every push to the `main`
-branch of the client repo (`yarn build`, output `dist/`). The same-origin proxy lives in the client
-repo at `functions/api/[[path]].js`; Terraform sets the `BACKEND_URL`, `PROXY_SECRET`, and
-`REACT_APP_GOOGLE_CLIENT_ID` env vars on the Pages project. `spa_proxy_example/` here is the
+The SPA then deploys from the client repo via `.github/workflows/deploy.yml`: on every push to
+`main` it runs `yarn build` and `wrangler pages deploy dist --project-name=fennec-spa`, which uploads
+both the SPA and the same-origin proxy at `functions/api/[[path]].js`. Terraform sets the proxy's
+runtime env vars (`BACKEND_URL`, `PROXY_SECRET`) on the Pages project; the SPA's build-time vars
+(`SERVER_URL`, `REACT_APP_GOOGLE_CLIENT_ID`) live in the workflow. `spa_proxy_example/` here is the
 reference copy of that proxy.
+
+The client repo needs these set once:
+
+- `secrets.CLOUDFLARE_API_TOKEN` - token with Account > Cloudflare Pages > Edit
+- `secrets.CLOUDFLARE_ACCOUNT_ID` - the Cloudflare account id
+- `vars.REACT_APP_GOOGLE_CLIENT_ID` - public Google OAuth client id (must match the server's)
 
 ## Verify
 
