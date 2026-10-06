@@ -26,7 +26,11 @@ resource "aws_ssm_parameter" "config" {
   value = each.value
 }
 
-# Secrets - created empty, you fill them via the AWS CLI. Terraform never sees the real values.
+# Secrets - created empty, you set the real values via `aws ssm put-parameter` so they never live
+# in a local file or in Terraform state.
+#   Used by the app today: SESSION_SECRET (session signing), GOOGLE_CLIENT_ID (Google ID-token verify).
+#   Declared in config but NOT read by current code: GOOGLE_CLIENT_SECRET (only for server-side OAuth
+#   code exchange), JWT_CLIENT_SECRET (app uses cookie sessions, not JWTs). Left here for future use.
 resource "aws_ssm_parameter" "secrets" {
   for_each = toset([
     "SESSION_SECRET",
