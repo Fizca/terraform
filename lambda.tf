@@ -54,3 +54,14 @@ resource "aws_lambda_function_url" "backend" {
   function_name      = aws_lambda_function.backend.function_name
   authorization_type = "NONE"
 }
+
+# authorization_type = "NONE" is not enough on its own: a Function URL still needs a
+# resource-based permission granting lambda:InvokeFunctionUrl to the public, or AWS
+# returns a 403 AccessDeniedException before the request reaches the app.
+resource "aws_lambda_permission" "function_url_public" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.backend.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
