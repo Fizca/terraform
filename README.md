@@ -67,5 +67,6 @@ the pre-existing Cloudflare app still works.
 
 ## Secrets and state
 
-`terraform.tfstate` contains the DB password and connection string. Keep it out of git (already
-gitignored) or move to an encrypted remote backend (e.g. S3 + DynamoDB lock) before sharing.
+State is local only. `terraform.tfstate` lives on the machine that runs `apply` and contains the DB
+password and connection string. It is gitignored, so it never leaves the machine. Run Terraform from
+that one machine, and back up the file if it matters to you.
