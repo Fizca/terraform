@@ -49,8 +49,8 @@ build. Terraform sets the `BACKEND_URL` and `PROXY_SECRET` env vars on the Pages
 ## Verify
 
 ```sh
-# Backend direct via API Gateway (should return {"status":"ok","db":"connected"}):
-curl "$(terraform output -raw backend_api_url)/api/health" -H "x-proxy-secret: <PROXY_SECRET>"
+# Backend direct via API Gateway (liveness route; should return {"hello":"world"}):
+curl "$(terraform output -raw backend_api_url)/" -H "x-proxy-secret: <PROXY_SECRET>"
 
 # Same-origin through Cloudflare (no secret header needed - the proxy adds it):
 curl "https://app2.DOMAIN/api/health"
