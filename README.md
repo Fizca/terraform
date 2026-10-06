@@ -31,20 +31,24 @@ Secrets can also be passed as env vars, e.g. `export TF_VAR_mongodbatlas_private
 
 ## Deploy
 
+One-time prerequisite: authorize the Cloudflare GitHub app on the `github_owner` org so Pages can
+build from the repo. Do this in the Cloudflare dashboard (Workers & Pages, connect to Git).
+Terraform cannot grant this.
+
 ```sh
 # 1. Install backend deps so the Lambda zip includes them.
 cd lambda_src && npm ci && cd ..
 
-# 2. Provision everything.
+# 2. Provision everything (creates the git-connected Pages project).
 terraform init
 terraform apply
-
-# 3. Deploy the SPA. Copy spa_proxy_example/functions/ into your SPA repo first, then:
-wrangler pages deploy ./dist --project-name="$(terraform output -raw pages_project_name)"
 ```
 
-The same-origin proxy needs `spa_proxy_example/functions/api/[[path]].js` present in your SPA
-build. Terraform sets the `BACKEND_URL` and `PROXY_SECRET` env vars on the Pages project for it.
+The SPA then deploys automatically: Cloudflare builds and publishes on every push to the `main`
+branch of the client repo (`yarn build`, output `dist/`). The same-origin proxy lives in the client
+repo at `functions/api/[[path]].js`; Terraform sets the `BACKEND_URL`, `PROXY_SECRET`, and
+`REACT_APP_GOOGLE_CLIENT_ID` env vars on the Pages project. `spa_proxy_example/` here is the
+reference copy of that proxy.
 
 ## Verify
 
