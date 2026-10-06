@@ -20,11 +20,24 @@ resource "cloudflare_pages_project" "spa" {
   }
 }
 
-# Bind app2.DOMAIN to the Pages project. Because the zone is on this Cloudflare account,
-# Cloudflare automatically creates the proxied CNAME for this custom domain - so no explicit
-# cloudflare_record is needed (adding one collides with the auto-created record).
+# Register the custom domain on the Pages project. This only records the intent; it does NOT
+# create the DNS record, so the domain stays "Verifying" until the CNAME below exists.
 resource "cloudflare_pages_domain" "spa" {
   account_id   = var.cloudflare_account_id
   project_name = cloudflare_pages_project.spa.name
   domain       = "${var.subdomain}.${var.domain}"
+}
+
+# The darksoda.com zone is managed in this Cloudflare account, so Terraform creates the proxied
+# CNAME that points the subdomain at the Pages project and lets the custom domain verify.
+data "cloudflare_zone" "root" {
+  name = var.domain
+}
+
+resource "cloudflare_record" "spa" {
+  zone_id = data.cloudflare_zone.root.id
+  name    = var.subdomain
+  type    = "CNAME"
+  value   = "${cloudflare_pages_project.spa.name}.pages.dev"
+  proxied = true
 }
