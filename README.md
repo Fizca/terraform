@@ -58,6 +58,73 @@ The client repo needs these set once:
 - `secrets.CLOUDFLARE_ACCOUNT_ID` - the Cloudflare account id
 - `vars.REACT_APP_GOOGLE_CLIENT_ID` - public Google OAuth client id (must match the server's)
 
+## Configuration reference: what to set vs leave alone
+
+The app's runtime config lives in SSM under `/fennec/server`. There are two kinds of values, handled
+very differently.
+
+### Terraform-managed (do NOT edit by hand)
+
+These are generated or derived from `terraform.tfvars` and variables. Change them by editing the
+variable and re-running `terraform apply`, never with `aws ssm put-parameter`. A manual edit drifts
+from state and gets reverted or confuses the next apply.
+
+| Value | Source |
+|-------|--------|
+| `MONGO_URL` | built from the cluster, `db_name`, and a generated DB password |
+| `AWS_S3_BUCKET_NAME`, `AWS_S3_REGION`, `AWS_S3_API_VERSION` | from variables |
+| `CORS_WHITELIST` | `https://${subdomain}.${domain}` |
+| `BACKEND_URL`, `PROXY_SECRET` (on the Pages project) | API Gateway endpoint and a generated secret |
+
+The database the app reads is the `db_name` variable (currently `myFirstDatabase`). To point the app
+at a different database, edit `db_name` in `terraform.tfvars` and re-apply. That updates both
+`MONGO_URL` and the Atlas user's `readWrite` scope. Do not hand-edit `MONGO_URL`.
+
+### Set once by hand (Terraform creates them empty)
+
+Terraform creates these as empty `REPLACE_ME` SecureStrings with `ignore_changes = [value]`. You set
+the real value once with `aws ssm put-parameter --overwrite`, and Terraform never touches it again.
+
+| Secret | Set it? | Notes |
+|--------|---------|-------|
+| `SESSION_SECRET` | Yes | random value, see the Session Secret section below |
+| `GOOGLE_CLIENT_ID` | Yes | must equal the client's `REACT_APP_GOOGLE_CLIENT_ID`, see below |
+| `GOOGLE_CLIENT_SECRET` | No | leave `REPLACE_ME`. The code verifies ID tokens offline, no code exchange |
+| `JWT_CLIENT_SECRET` | No | leave `REPLACE_ME`. The app uses cookie sessions, not JWTs |
+
+After changing any SSM value, force a Lambda cold start so it reloads. SSM is read only at cold start,
+so a warm Lambda keeps the old value until the environment recycles.
+
+```bash
+aws lambda update-function-configuration \
+  --function-name fennec-backend \
+  --description "reload SSM $(date -u +%FT%TZ)" \
+  --region us-east-2
+```
+
+### Google client id (the server and client must match)
+
+The SPA signs the user in with its `REACT_APP_GOOGLE_CLIENT_ID` (a GitHub repo variable in the client
+repo), and the server verifies the resulting ID token against its `GOOGLE_CLIENT_ID` (SSM). These must
+be the same Google OAuth web client id. If they differ, the server throws
+`payload audience != requiredAudience` and login fails.
+
+```bash
+# Point the server at the same id the client builds with:
+aws ssm put-parameter --name /fennec/server/GOOGLE_CLIENT_ID \
+  --type SecureString --value "<client-id>.apps.googleusercontent.com" \
+  --overwrite --region us-east-2
+
+# Confirm the two agree (bundle value should equal the SSM value):
+curl -s https://fennec.darksoda.com/bundle.js \
+  | grep -oE '[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com' | head -1
+aws ssm get-parameter --name /fennec/server/GOOGLE_CLIENT_ID \
+  --with-decryption --region us-east-2 --query Parameter.Value --output text
+```
+
+The client id is public (it ships in the SPA bundle). Only the client secret would be sensitive, and
+this flow does not use it.
+
 ## Verify
 
 ```sh
