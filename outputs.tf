@@ -43,3 +43,8 @@ output "mongodb_uri" {
   value       = local.mongodb_uri
   sensitive   = true
 }
+
+output "ecr_repository_url" {
+  description = "ECR repository URL for the backend image. Used by the deploy workflow."
+  value       = aws_ecr_repository.backend.repository_url
+}

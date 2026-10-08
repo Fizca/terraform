@@ -18,12 +18,11 @@ variable "create_github_oidc_provider" {
   default     = true
 }
 
-# --- Lambda Web Adapter ---
+# --- Container image ---
 
-variable "lwa_layer_version" {
-  description = "Version of the public Lambda Web Adapter x86_64 layer. Check the LWA repo for the latest."
-  type        = number
-  default     = 28
+variable "image_tag" {
+  description = "Image tag the Lambda is created from (the seed commit SHA). CI deploys new tags out of band via update-function-code; this is only Terraform's create-time anchor."
+  type        = string
 }
 
 # --- Assets / S3 ---
