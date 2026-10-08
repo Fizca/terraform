@@ -72,7 +72,7 @@ data "aws_iam_policy_document" "ci_deploy" {
       "ecr:GetDownloadUrlForLayer",
       "ecr:DescribeImages",
     ]
-    resources = [aws_ecr_repository.backend.arn]
+    resources = [data.aws_ecr_repository.backend.arn]
   }
 }
 

@@ -7,7 +7,7 @@ resource "aws_lambda_function" "backend" {
   function_name = "${var.app_name}-backend"
   role          = aws_iam_role.lambda.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
+  image_uri     = "${data.aws_ecr_repository.backend.repository_url}:${var.image_tag}"
   architectures = ["x86_64"]
   memory_size   = var.lambda_memory_mb
   timeout       = var.lambda_timeout_s

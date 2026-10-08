@@ -45,6 +45,6 @@ output "mongodb_uri" {
 }
 
 output "ecr_repository_url" {
-  description = "ECR repository URL for the backend image. Used by the deploy workflow."
-  value       = aws_ecr_repository.backend.repository_url
+  description = "ECR repository URL for the backend image (owned by the bootstrap layer). Used by the deploy workflow."
+  value       = data.aws_ecr_repository.backend.repository_url
 }

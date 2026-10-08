@@ -1,6 +1,8 @@
-# Private registry for the backend container image. The Lambda pulls from here;
-# GitHub Actions pushes a new image per commit. Same region as the Lambda, so
-# pulls incur no data-transfer cost.
+# Private registry for the backend container image. Lives in the bootstrap
+# layer so it exists before the app layer builds the Lambda from it (the image
+# must be in private ECR at function-create time). GitHub Actions pushes a new
+# image per commit. Same region as the Lambda, so pulls incur no data-transfer
+# cost.
 resource "aws_ecr_repository" "backend" {
   name                 = "${var.app_name}-backend"
   image_tag_mutability = "IMMUTABLE"
