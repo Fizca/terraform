@@ -31,19 +31,65 @@ Secrets can also be passed as env vars, e.g. `export TF_VAR_mongodbatlas_private
 
 ## Deploy
 
-Cloudflare's dashboard no longer offers Pages git integration (it steers new repos into Workers),
-and the git-integration API is unreliable (error `8000011`). So the Pages project is a direct-upload
-project: Terraform provisions it, its runtime env vars, and the custom domain; a GitHub Actions
-workflow in the client repo builds and publishes it on every push to `main`.
+The backend runs from a container image on Lambda. An image-based Lambda must reference an image that
+already exists in private ECR, which Terraform cannot synthesize. To keep the bootstrap a set of clean
+full applies (no `-target`), Terraform is split into two layers with separate state:
+
+- `bootstrap/` creates the ECR repository and its lifecycle policy.
+- the root module creates everything else (Lambda, API Gateway, IAM, SSM, Atlas user, Cloudflare Pages)
+  and reads the repo through a `data "aws_ecr_repository"` source. That lookup fails loudly if the
+  bootstrap layer has not been applied, which enforces the order.
+
+### First-time bootstrap
+
+Two full applies with an image push between them. Run everything from this `terraform` directory, with
+the AWS CLI authenticated (`awsuse`, region us-east-2) and Docker running. `$SRV` is the server repo
+(adjust the path if it is not a sibling).
 
 ```sh
-# 1. Install backend deps so the Lambda zip includes them.
-cd lambda_src && npm ci && cd ..
+# 1. Create the ECR repository (bootstrap layer).
+cd bootstrap
+terraform init
+terraform apply
+cd ..
 
-# 2. Provision everything (creates the direct-upload Pages project, domain, and env vars).
+# 2. Build and push the seed image to ECR.
+SRV=../server
+SHA=$(git -C "$SRV" rev-parse HEAD)
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+REGISTRY="$ACCOUNT.dkr.ecr.us-east-2.amazonaws.com"
+aws ecr get-login-password --region us-east-2 \
+  | docker login --username AWS --password-stdin "$REGISTRY"
+docker buildx build \
+  --platform linux/amd64 --provenance=false --sbom=false \
+  -t "$REGISTRY/fennec-backend:$SHA" --push "$SRV"
+
+# 3. Pin the seed tag so the app layer creates the function from it.
+#    Add this line to terraform.tfvars:  image_tag = "<the SHA printed above>"
+
+# 4. Provision everything else (app layer).
 terraform init
 terraform apply
 ```
+
+Notes:
+
+- `--platform linux/amd64` matches the x86_64 Lambda runtime; on Apple Silicon it builds under
+  emulation. `--provenance=false --sbom=false` keeps the push a single image manifest, which Lambda
+  requires (the default buildx output is a multi-manifest index Lambda rejects).
+- `image_tag` is only the create-time anchor. Routine backend deploys run in the server repo via
+  `.github/workflows/deploy.yml`, which builds a new SHA-tagged image and calls `update-function-code`.
+  Terraform ignores `image_uri` after creation, so it never fights CI over the running image.
+- The SSM secrets (`SESSION_SECRET`, `GOOGLE_CLIENT_ID`) are still set once by hand after the apply.
+  See "Set once by hand" and "Session Secret" below.
+- Tear down in reverse: `terraform destroy` here (root), then `cd bootstrap && terraform destroy`.
+
+### Frontend (Cloudflare Pages)
+
+Cloudflare's dashboard no longer offers Pages git integration (it steers new repos into Workers),
+and the git-integration API is unreliable (error `8000011`). So the Pages project is a direct-upload
+project: Terraform (root layer) provisions it, its runtime env vars, and the custom domain; a GitHub
+Actions workflow in the client repo builds and publishes it on every push to `main`.
 
 The SPA then deploys from the client repo via `.github/workflows/deploy.yml`: on every push to
 `main` it runs `yarn build` and `wrangler pages deploy dist --project-name=fennec-spa`, which uploads
