@@ -42,14 +42,37 @@ resource "aws_iam_role" "ci_deploy" {
   assume_role_policy = data.aws_iam_policy_document.ci_assume.json
 }
 
-# CI can only update this one function's code.
+# CI builds + pushes the image to ECR and updates this one function.
 data "aws_iam_policy_document" "ci_deploy" {
   statement {
+    sid = "UpdateFunction"
     actions = [
       "lambda:UpdateFunctionCode",
       "lambda:GetFunction",
     ]
     resources = [aws_lambda_function.backend.arn]
+  }
+
+  # GetAuthorizationToken cannot be scoped to a repo; it must be "*".
+  statement {
+    sid       = "EcrAuth"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "EcrPush"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:DescribeImages",
+    ]
+    resources = [aws_ecr_repository.backend.arn]
   }
 }
 
