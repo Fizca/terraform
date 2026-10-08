@@ -42,4 +42,13 @@ resource "aws_lambda_permission" "apigw_invoke" {
   function_name = aws_lambda_function.backend.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.backend.execution_arn}/*/*"
+
+  # function_name is a stable string, so a function REPLACE (e.g. the zip->image
+  # package_type switch, which is ForceNew) does not otherwise re-trigger this
+  # permission. The resource-based policy lives on the function and dies with it,
+  # leaving API Gateway unable to invoke the new function (500/403, no app logs).
+  # Force the permission to be recreated whenever the function is replaced.
+  lifecycle {
+    replace_triggered_by = [aws_lambda_function.backend.id]
+  }
 }
